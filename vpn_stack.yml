@@ -1,0 +1,55 @@
+# This Docker compose file contains definitions of the containers that will run on the gluetun VPN container configured to use CyberGhost.
+# Provides qbittorrent and prowlarr running through the VPN.
+version: "3"
+services:
+  gluetun:
+    # Gluetun is a base image provided to setup a VPN connection, compatible wth most large VPN providers
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8088:8088
+      - 9696:9696/tcp
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      VPN_SERVICE_PROVIDER: cyberghost
+      OPENVPN_USER: <openvpn_user> # Get from CyberGhost
+      OPENVPN_PASSWORD: <openvpn_password> # Get from CyberGhost
+      SERVER_COUNTRIES: Switzerland # Depends on where you have created your openvpn setup to
+      TZ: Europe/Brussels
+    volumes:
+      - /volume1/docker/gluetun:/gluetun
+  torrent:
+    image: linuxserver/qbittorrent:latest
+    container_name: qbit_gluetun
+    network_mode: service:gluetun
+    environment:
+      WEBUI_PORT: 8088
+      PUID: <UID_of_user_running_app> # e.g. an admin or tech user. Type `id <username>` in a terminal connected as an admin user to retrieve IDs.
+      PGID: <GID_of_user_running_app> # e.g. an admin or tech user. Type `id <username>` in a terminal connected as an admin user to retrieve IDs.
+      TZ: Europe/Brussels
+    volumes:
+      - /volume1/docker/qbit/config:/config
+      - /volume1/docker/qbit/download:/downloads
+    depends_on:
+      - gluetun
+    restart: always
+  prowlarr:
+    image: linuxserver/prowlarr:latest
+    container_name: prowlarr_gluetun
+    network_mode: service:gluetun
+    environment:
+      WEBUI_PORT: 9696
+      PUID: <UID_of_user_running_app> # e.g. an admin or tech user. Type `id <username>` in a terminal connected as an admin user to retrieve IDs.
+      PGID: <GID_of_user_running_app> # e.g. an admin or tech user. Type `id <username>` in a terminal connected as an admin user to retrieve IDs.
+      TZ: Europe/Brussels
+      UMASK: 022
+    volumes:
+      - /volume1/docker/prowlarr:/config
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - gluetun
+    restart: always
