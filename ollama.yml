@@ -1,0 +1,43 @@
+# Currently non functional. Needs to be investgiated further; kept launching multiple chat instances that saturated NAS CPU
+services:
+  webui:
+    container_name: OLLAMA-WEBUI
+    image: ghcr.io/open-webui/open-webui:0.5
+    volumes:
+      - /volume1/docker/ollama/webui:/app/backend/data:rw
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      WEBUI_SECRET_KEY: <Ollame_WebUI_secret_key>
+    healthcheck:
+      test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    ports:
+      - 8271:8080
+    restart: on-failure
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  ollama:
+    container_name: OLLAMA
+    image: ollama/ollama:latest #For a NAS with an AMD CPU, use the following image ollama/ollama:rocm instead of ollama/ollama:latest
+    entrypoint: ["/usr/bin/bash", "/entrypoint.sh"]
+    volumes:
+      - /volume1/docker/ollama/data:/root/.ollama:rw
+      - /volume1/docker/ollama/entrypoint/entrypoint.sh:/entrypoint.sh
+    environment:
+      MODELS: llama3.3 #Check all the models at the following link https://ollama.com/library - You can separate models by commas like llama3.2,gemma2,mistral
+      OLLAMA_INSTALL_MODELS: llama3.3 #Check all the models at the following link https://ollama.com/library - You can separate models by commas like llama3.2,gemma2,mistral
+      OLLAMA_HOSTNAME: <hostname_of_Ollama_on_Alvis>
+    ports:
+      - 11434:11434
+    healthcheck:
+      test: ["CMD", "ollama", "--version"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: on-failure:5
